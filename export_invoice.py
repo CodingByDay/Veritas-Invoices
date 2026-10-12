@@ -344,7 +344,7 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
         pdf.setLineWidth(0.4)
         pdf.line(MARGIN, 40, PAGE_W - MARGIN, 40)
         pdf.setFillColor(muted)
-        pdf.setFont(regular, 8)
+        pdf.setFont(regular, 10)
         pdf.drawCentredString(
             PAGE_W / 2,
             26,
@@ -355,7 +355,7 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
         pdf.setFillColor(navy)
         pdf.setFont(bold, 11)
         pdf.drawString(MARGIN, PAGE_H - 32, f"Račun br. {invoice.number}")
-        pdf.setFont(regular, 9)
+        pdf.setFont(regular, 11)
         pdf.setFillColor(muted)
         pdf.drawRightString(PAGE_W - MARGIN, PAGE_H - 32, "Nastavak")
         return PAGE_H - 52
@@ -368,7 +368,7 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
         return draw_table_header(y)
 
     y = chrome(False)
-    logo_w, logo_h = 108, 19
+    logo_w, logo_h = 72, 13
     if LOGO_PATH.exists():
         pdf.drawImage(
             ImageReader(str(LOGO_PATH)),
@@ -406,16 +406,16 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
         return height + 8
 
     seller_lines = [
-        (SELLER.name, bold, 10),
-        (SELLER.address, regular, 9),
-        (f"Matični broj: {SELLER.registration}", regular, 9),
-        (f"Poreski broj: {SELLER.tax}", regular, 9),
+        (SELLER.name, bold, 11),
+        (SELLER.address, regular, 10),
+        (f"Matični broj: {SELLER.registration}", regular, 10),
+        (f"Poreski broj: {SELLER.tax}", regular, 10),
     ]
     buyer_lines = [
-        (invoice.buyer.name, bold, 10),
-        (invoice.buyer.address, regular, 9),
-        (f"Matični broj: {invoice.buyer.registration}", regular, 9),
-        (f"Poreski broj: {invoice.buyer.tax}", regular, 9),
+        (invoice.buyer.name, bold, 11),
+        (invoice.buyer.address, regular, 10),
+        (f"Matični broj: {invoice.buyer.registration}", regular, 10),
+        (f"Poreski broj: {invoice.buyer.tax}", regular, 10),
     ]
     party_h = max(block_height(seller_lines, col_w), block_height(buyer_lines, col_w)) + 18
     pdf.setFillColor(soft)
@@ -425,7 +425,7 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
     def paint_party(x: float, title: str, lines: list[tuple[str, str, float]]) -> None:
         cursor = y - 16
         pdf.setFillColor(navy)
-        pdf.setFont(bold, 8)
+        pdf.setFont(bold, 10)
         pdf.drawString(x + 10, cursor, title)
         cursor -= 16
         for text, font, size in lines:
@@ -441,29 +441,29 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
 
     bank_wrapped: list[str] = []
     for entry in profile.bank_lines:
-        bank_wrapped.extend(_wrap(entry, regular, 9, col_w))
+        bank_wrapped.extend(_wrap(entry, regular, 10, col_w))
     meta = meta_lines(invoice)
     meta_wrapped: list[tuple[str, bool]] = []
     for text, is_bold in meta:
         font = bold if is_bold else regular
-        for wrapped in _wrap(text, font, 9, col_w):
+        for wrapped in _wrap(text, font, 10, col_w):
             meta_wrapped.append((wrapped, is_bold))
     info_h = max(len(bank_wrapped), len(meta_wrapped)) * 13
     cursor = y
     for wrapped in bank_wrapped:
-        pdf.setFont(regular, 9)
+        pdf.setFont(regular, 10)
         pdf.setFillColor(ink)
         pdf.drawString(MARGIN, cursor, wrapped)
         cursor -= 13
     cursor = y
     for wrapped, is_bold in meta_wrapped:
-        pdf.setFont(bold if is_bold else regular, 9)
+        pdf.setFont(bold if is_bold else regular, 10)
         pdf.setFillColor(navy if is_bold else ink)
         pdf.drawString(right_x, cursor, wrapped)
         cursor -= 13
     y -= info_h + 18
 
-    qty_w, price_w, total_w = 68, 88, 100
+    qty_w, price_w, total_w = 86, 96, 110
     name_w = content_w - qty_w - price_w - total_w
     cols = (
         (MARGIN, name_w, "NAZIV", "left"),
@@ -474,28 +474,28 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
 
     def table_header(top: float) -> float:
         pdf.setFillColor(navy)
-        pdf.roundRect(MARGIN, top - 22, content_w, 22, 3, fill=1, stroke=0)
-        pdf.rect(MARGIN, top - 22, content_w, 8, fill=1, stroke=0)
+        pdf.roundRect(MARGIN, top - 28, content_w, 28, 3, fill=1, stroke=0)
+        pdf.rect(MARGIN, top - 28, content_w, 10, fill=1, stroke=0)
         pdf.setFillColor(white)
-        pdf.setFont(bold, 8)
+        pdf.setFont(bold, 11)
         for x, width, text, align in cols:
-            baseline = top - 15
+            baseline = top - 18
             if align == "left":
                 pdf.drawString(x + 8, baseline, text)
             elif align == "center":
                 pdf.drawCentredString(x + width / 2, baseline, text)
             else:
                 pdf.drawRightString(x + width - 8, baseline, text)
-        return top - 22
+        return top - 28
 
     y = table_header(y)
 
     def row_lines(text: str) -> list[str]:
-        return _wrap(text, regular, 9.5, name_w - 16)
+        return _wrap(text, regular, 12, name_w - 16)
 
     for index, item in enumerate(invoice.lines):
         wrapped = row_lines(item.name)
-        row_h = max(24, 10 + len(wrapped) * 12)
+        row_h = max(32, 14 + len(wrapped) * 16)
         y = ensure(y, row_h + 4, table_header)
         if index % 2 == 1:
             pdf.setFillColor(zebra)
@@ -503,17 +503,17 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
         pdf.setStrokeColor(line)
         pdf.setLineWidth(0.3)
         pdf.line(MARGIN, y - row_h, MARGIN + content_w, y - row_h)
-        text_y = y - 15
+        text_y = y - 20
         pdf.setFillColor(ink)
-        pdf.setFont(regular, 9.5)
+        pdf.setFont(regular, 12)
         for wrapped_line in wrapped:
             pdf.drawString(MARGIN + 8, text_y, wrapped_line)
-            text_y -= 12
-        mid = y - row_h / 2 - 3
-        pdf.setFont(regular, 9.5)
+            text_y -= 16
+        mid = y - row_h / 2 - 4
+        pdf.setFont(regular, 12)
         pdf.drawCentredString(MARGIN + name_w + qty_w / 2, mid, fmt_qty(item.qty))
         pdf.drawRightString(MARGIN + name_w + qty_w + price_w - 8, mid, fmt_money(item.price))
-        pdf.setFont(bold, 9.5)
+        pdf.setFont(bold, 12)
         pdf.drawRightString(PAGE_W - MARGIN - 8, mid, fmt_money(item.total))
         y -= row_h
 
@@ -524,18 +524,18 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
     amount = fmt_money(invoice.total)
     pay_amount = f"{amount} {profile.symbol}".strip()
     pdf.setFillColor(muted)
-    pdf.setFont(regular, 9)
+    pdf.setFont(regular, 11)
     pdf.drawString(box_x, y, profile.grand_label)
     pdf.setFillColor(ink)
-    pdf.setFont(regular, 10)
+    pdf.setFont(regular, 12)
     pdf.drawRightString(PAGE_W - MARGIN, y, amount)
     y -= 28
     pdf.setFillColor(total_bg)
     pdf.roundRect(box_x, y - 6, box_w, 26, 4, fill=1, stroke=0)
     pdf.setFillColor(navy)
-    pdf.setFont(bold, 10)
-    pdf.drawString(box_x + 10, y + 2, "Ukupno za platiti")
     pdf.setFont(bold, 12)
+    pdf.drawString(box_x + 10, y + 2, "Ukupno za platiti")
+    pdf.setFont(bold, 14)
     pdf.drawRightString(PAGE_W - MARGIN - 10, y + 1, pay_amount)
     y -= 28
 
@@ -553,7 +553,7 @@ def write_pdf(invoice: Invoice, path: Path) -> None:
     for text, is_bold in footer_lines():
         y = ensure(y, 16, table_header)
         pdf.setFillColor(navy if is_bold else muted)
-        pdf.setFont(bold if is_bold else regular, 9)
+        pdf.setFont(bold if is_bold else regular, 11)
         pdf.drawString(MARGIN, y, text)
         y -= 14
 

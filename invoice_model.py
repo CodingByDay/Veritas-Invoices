@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -10,7 +11,8 @@ from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = APP_DIR / "data"
-OUTPUT_DIR = APP_DIR / "izdati"
+OUTPUT_DIR = APP_DIR / "issued"
+LEGACY_OUTPUT_DIR = APP_DIR / "izdati"
 LOGO_PATH = APP_DIR / "assets" / "veritas_logo.png"
 STATE_PATH = DATA_DIR / "stanje.json"
 LEGACY_COUNTER = APP_DIR.parent / "Next bill number.txt"
@@ -28,6 +30,20 @@ MONTHS = (
     "oktobar",
     "novembar",
     "decembar",
+)
+ENGLISH_MONTHS = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 )
 
 _ONES_M = (
@@ -374,8 +390,77 @@ def upsert_customer(customers: list[dict], record: dict) -> list[dict]:
     return customers
 
 
+def country_name(key: str) -> str:
+    names = {
+        "slovenija": "Slovenia",
+        "srbija": "Serbia",
+        "Slovenija": "Slovenia",
+        "Srbija": "Serbia",
+        "Slovenia": "Slovenia",
+        "Serbia": "Serbia",
+    }
+    return names.get(key, key)
+
+
+def _month_names(token: str) -> tuple[str, str] | None:
+    lowered = token.lower()
+    for english, serbian in zip(ENGLISH_MONTHS, MONTHS):
+        if lowered == english.lower() or lowered == serbian:
+            return english, serbian
+    return None
+
+
+def english_period(period: str) -> str:
+    parts = period.split()
+    if not parts:
+        return period
+    names = _month_names(parts[0])
+    if names is None:
+        return period
+    parts[0] = names[0]
+    return " ".join(parts)
+
+
+def document_period(period: str) -> str:
+    """Month name printed on the Serbian invoice."""
+    parts = period.split()
+    if not parts:
+        return period
+    names = _month_names(parts[0])
+    if names is None:
+        return period
+    parts[0] = names[1]
+    return " ".join(parts)
+
+
 def period_label(value: date) -> str:
-    return f"{MONTHS[value.month - 1]} {value.year}"
+    return f"{ENGLISH_MONTHS[value.month - 1]} {value.year}"
+
+
+def english_invoice_filename(name: str) -> str:
+    path = Path(name)
+    stem = path.stem
+    stem = stem.replace("Faktura Veritas - Slovenija", "Invoice Veritas - Slovenia")
+    stem = stem.replace("Faktura Veritas - Srbija", "Invoice Veritas - Serbia")
+    extra = ""
+    marker = " ("
+    if stem.endswith(")") and marker in stem:
+        base, _, tail = stem.rpartition(marker)
+        if tail[:-1].isdigit():
+            stem = base
+            extra = marker + tail
+    pieces = stem.split(" - ")
+    if pieces:
+        pieces[-1] = english_period(pieces[-1])
+        stem = " - ".join(pieces)
+    return f"{stem}{extra}{path.suffix}"
+
+
+def english_stored_path(raw: str) -> str:
+    path = Path(raw)
+    parts = ["issued" if part.lower() == "izdati" else part for part in path.parts]
+    updated = Path(*parts).with_name(english_invoice_filename(path.name))
+    return str(updated)
 
 
 def parse_date(text: str) -> date:
@@ -457,6 +542,69 @@ def default_state() -> dict:
     }
 
 
+def _migrate_issued_files() -> None:
+    """Move invoices out of the old Serbian folder and give them English names."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    sources: list[Path] = []
+    if LEGACY_OUTPUT_DIR.exists():
+        sources.extend(path for path in LEGACY_OUTPUT_DIR.rglob("*") if path.is_file())
+    if OUTPUT_DIR.exists():
+        sources.extend(path for path in OUTPUT_DIR.rglob("*") if path.is_file())
+    for src in sources:
+        if LEGACY_OUTPUT_DIR in src.parents:
+            relative = src.relative_to(LEGACY_OUTPUT_DIR)
+            dest = OUTPUT_DIR / relative.parent / english_invoice_filename(relative.name)
+        else:
+            dest = src.with_name(english_invoice_filename(src.name))
+        if os.path.normcase(str(src)) == os.path.normcase(str(dest)):
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            continue
+        try:
+            src.replace(dest)
+        except OSError:
+            continue
+    if LEGACY_OUTPUT_DIR.exists():
+        for folder in sorted(LEGACY_OUTPUT_DIR.rglob("*"), reverse=True):
+            if folder.is_dir():
+                try:
+                    folder.rmdir()
+                except OSError:
+                    pass
+        try:
+            LEGACY_OUTPUT_DIR.rmdir()
+        except OSError:
+            pass
+
+
+def _rewrite_history_paths(state: dict) -> bool:
+    changed = False
+    history = state.get("istorija")
+    if not isinstance(history, list):
+        return False
+    for item in history:
+        if not isinstance(item, dict):
+            continue
+        english_format = country_name(str(item.get("zemlja") or item.get("format") or ""))
+        if english_format in ("Slovenia", "Serbia") and item.get("format") != english_format:
+            item["format"] = english_format
+            changed = True
+        for key in ("pdf", "excel"):
+            raw = item.get(key)
+            if not isinstance(raw, str) or not raw:
+                continue
+            updated = english_stored_path(raw)
+            if os.path.normcase(updated) == os.path.normcase(raw):
+                continue
+            new_path = Path(updated)
+            old_path = Path(raw)
+            if new_path.exists() or not old_path.exists():
+                item[key] = str(new_path)
+                changed = True
+    return changed
+
+
 def load_state() -> dict:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not STATE_PATH.exists():
@@ -482,6 +630,9 @@ def load_state() -> dict:
         base["kupci_lista"] = builtin_customers()
     if base.get("poslednji_format") not in PROFILES:
         base["poslednji_format"] = "slovenija"
+    _migrate_issued_files()
+    if _rewrite_history_paths(base):
+        save_state(base)
     return base
 
 
@@ -518,7 +669,7 @@ def remember_invoice(invoice: Invoice, pdf_path: Path) -> dict:
             "broj": invoice.number,
             "datum": invoice.issue_date.isoformat(),
             "rok": invoice.due_date.isoformat(),
-            "format": invoice.profile.title,
+            "format": country_name(invoice.country),
             "zemlja": invoice.country,
             "kupac": invoice.buyer.name,
             "iznos": str(invoice.total),
@@ -552,7 +703,7 @@ def _customers_from_legacy(legacy: object) -> list[dict]:
 
 def meta_lines(invoice: Invoice) -> list[tuple[str, bool]]:
     return [
-        (f"Mesto i mesec prometa: {invoice.period}, {invoice.place}", False),
+        (f"Mesto i mesec prometa: {document_period(invoice.period)}, {invoice.place}", False),
         (f"Datum računa: {format_date(invoice.issue_date)}", False),
         (f"Rok plaćanja: {format_date(invoice.due_date)}", True),
     ]
@@ -571,7 +722,10 @@ def footer_lines() -> list[tuple[str, bool]]:
 def output_pdf_path(invoice: Invoice) -> Path:
     folder = OUTPUT_DIR / str(invoice.issue_date.year)
     folder.mkdir(parents=True, exist_ok=True)
-    raw = f"Faktura Veritas - {invoice.profile.title} - {invoice.number} - {invoice.period}"
+    raw = (
+        f"Invoice Veritas - {country_name(invoice.country)} - {invoice.number} - "
+        f"{english_period(invoice.period)}"
+    )
     safe = "".join(ch for ch in raw if ch not in '\\/:*?"<>|').strip()
     number = 1
     while True:

@@ -1,11 +1,25 @@
 {
-  "sledeci_broj": 11,
+  "sledeci_broj": 12,
   "istorija": [
+    {
+      "broj": 11,
+      "datum": "2026-10-31",
+      "rok": "2026-11-10",
+      "format": "Serbia",
+      "zemlja": "srbija",
+      "kupac": "Landfreight d.o.o.",
+      "iznos": "55.00",
+      "valuta": "RSD",
+      "stavke": [
+        "d"
+      ],
+      "pdf": "D:\\Main folders\\Veritas Software\\Invoices\\Invoice program\\issued\\2026\\Invoice Veritas - Serbia - 11 - October 2026.pdf"
+    },
     {
       "broj": 10,
       "datum": "2026-10-31",
       "rok": "2026-11-10",
-      "format": "Srbija",
+      "format": "Serbia",
       "zemlja": "srbija",
       "kupac": "Landfreight d.o.o.",
       "iznos": "3200.00",
@@ -14,8 +28,8 @@
         "Projekat NetworksDefender",
         "Troškovi veštačke inteligencije"
       ],
-      "excel": "D:\\Main folders\\Veritas Software\\Invoices\\Invoice program\\izdati\\2026\\Faktura Veritas - Srbija - 10 - oktobar 2026.xlsx",
-      "pdf": "D:\\Main folders\\Veritas Software\\Invoices\\Invoice program\\izdati\\2026\\Faktura Veritas - Srbija - 10 - oktobar 2026.pdf"
+      "excel": "D:\\Main folders\\Veritas Software\\Invoices\\Invoice program\\issued\\2026\\Invoice Veritas - Serbia - 10 - October 2026.xlsx",
+      "pdf": "D:\\Main folders\\Veritas Software\\Invoices\\Invoice program\\issued\\2026\\Invoice Veritas - Serbia - 10 - October 2026.pdf"
     }
   ],
   "kupci": {},
@@ -39,5 +53,5 @@
       "format": "srbija"
     }
   ],
-  "poslednji_format": "slovenija"
+  "poslednji_format": "srbija"
 }

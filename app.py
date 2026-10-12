@@ -19,6 +19,7 @@ from invoice_model import (
     Line,
     default_due_date,
     default_issue_date,
+    english_stored_path,
     format_date,
     load_state,
     money_with_currency,
@@ -66,13 +67,13 @@ class ItemRow(tk.Frame):
             highlightthickness=1,
             highlightbackground=LINE,
             highlightcolor=NAVY,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 13),
         )
         self.name = tk.Entry(self, **entry)
         self.qty = tk.Entry(self, width=6, justify="center", **entry)
         self.price = tk.Entry(self, width=10, justify="right", **entry)
         self.qty.insert(0, "1")
-        self.total = tk.Label(self, text="", bg=WHITE, fg=NAVY, font=("Segoe UI", 10, "bold"), anchor="e")
+        self.total = tk.Label(self, text="", bg=WHITE, fg=NAVY, font=("Segoe UI", 13, "bold"), anchor="e")
         self.remove_btn = tk.Button(
             self,
             text="✕",
@@ -87,9 +88,9 @@ class ItemRow(tk.Frame):
             cursor="hand2",
             width=3,
         )
-        self.name.grid(row=0, column=0, sticky="ew", padx=(0, 8), ipady=6)
-        self.qty.grid(row=0, column=1, sticky="ew", padx=(0, 8), ipady=6)
-        self.price.grid(row=0, column=2, sticky="ew", padx=(0, 8), ipady=6)
+        self.name.grid(row=0, column=0, sticky="ew", padx=(0, 8), ipady=8)
+        self.qty.grid(row=0, column=1, sticky="ew", padx=(0, 8), ipady=8)
+        self.price.grid(row=0, column=2, sticky="ew", padx=(0, 8), ipady=8)
         self.total.grid(row=0, column=3, sticky="ew", padx=(0, 4))
         self.remove_btn.grid(row=0, column=4)
         self.columnconfigure(0, weight=1)
@@ -141,6 +142,8 @@ class App(tk.Tk):
         self.customer_var = tk.StringVar()
         self.item_rows: list[ItemRow] = []
         self.history_paths: dict[str, str] = {}
+        self.history_index: dict[str, int] = {}
+        self.selected_history: str | None = None
         self.country_buttons: dict[str, tk.Button] = {}
         self._build()
         self._apply_country()
@@ -168,15 +171,15 @@ class App(tk.Tk):
             background=WHITE,
             fieldbackground=WHITE,
             foreground=INK,
-            rowheight=28,
+            rowheight=36,
             borderwidth=0,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 13),
         )
         style.configure(
             "History.Treeview.Heading",
             background="#e7edf4",
             foreground=NAVY,
-            font=("Segoe UI", 9, "bold"),
+            font=("Segoe UI", 12, "bold"),
             relief="flat",
         )
         style.map("History.Treeview", background=[("selected", "#d9e4f5")], foreground=[("selected", NAVY)])
@@ -186,7 +189,7 @@ class App(tk.Tk):
             background=WHITE,
             foreground=INK,
             padding=6,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 13),
         )
 
         footer = tk.Frame(self, bg=WHITE, highlightthickness=1, highlightbackground=LINE)
@@ -205,7 +208,7 @@ class App(tk.Tk):
             bd=0,
             padx=18,
             pady=10,
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 14, "bold"),
             cursor="hand2",
         )
         self.generate_btn.pack(side="left")
@@ -220,27 +223,29 @@ class App(tk.Tk):
             bd=0,
             padx=14,
             pady=10,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 13, "bold"),
             cursor="hand2",
         ).pack(side="left", padx=(8, 0))
-        self.status = tk.Label(footer_inner, text="", bg=WHITE, fg=MUTED, font=("Segoe UI", 9), anchor="w")
-        self.status.pack(side="left", padx=14)
+        self.status = tk.Label(footer_inner, text="", bg=WHITE, fg=MUTED, font=("Segoe UI", 12), anchor="w")
+        self.status.pack(side="left", padx=14, fill="x", expand=True)
         total_box = tk.Frame(footer_inner, bg=TOTAL_BG, padx=14, pady=4)
         total_box.pack(side="right")
-        tk.Label(total_box, text="Amount due", bg=TOTAL_BG, fg=MUTED, font=("Segoe UI", 8)).pack(anchor="e")
+        tk.Label(total_box, text="Amount due", bg=TOTAL_BG, fg=MUTED, font=("Segoe UI", 12)).pack(anchor="e")
         tk.Label(
             total_box,
             textvariable=self.total_var,
             bg=TOTAL_BG,
             fg=NAVY,
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 20, "bold"),
         ).pack(anchor="e")
         tk.Label(
             footer_inner,
             textvariable=self.words_var,
             bg=WHITE,
             fg=MUTED,
-            font=("Segoe UI", 9, "italic"),
+            font=("Segoe UI", 12, "italic"),
+            wraplength=240,
+            justify="right",
         ).pack(side="right", padx=(0, 12))
 
         self.canvas = tk.Canvas(self, bg=BG, highlightthickness=0)
@@ -259,7 +264,7 @@ class App(tk.Tk):
 
         header = tk.Frame(wrap, bg=BG)
         header.pack(fill="x")
-        tk.Label(header, text="VERITAS INVOICES", bg=BG, fg=NAVY, font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        tk.Label(header, text="VERITAS INVOICES", bg=BG, fg=NAVY, font=("Segoe UI", 14, "bold")).pack(anchor="w")
         tk.Label(
             header,
             text="New invoice",
@@ -272,7 +277,7 @@ class App(tk.Tk):
             text="Choose the format and customer, then enter the services and prices.",
             bg=BG,
             fg=MUTED,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 13),
         ).pack(anchor="w", pady=(2, 12))
 
         switch = tk.Frame(wrap, bg=BG)
@@ -287,7 +292,7 @@ class App(tk.Tk):
                 relief="flat",
                 bd=0,
                 cursor="hand2",
-                font=("Segoe UI", 11, "bold"),
+                font=("Segoe UI", 14, "bold"),
                 justify="left",
                 anchor="w",
                 padx=16,
@@ -302,7 +307,7 @@ class App(tk.Tk):
             details_inner.columnconfigure(col, weight=1)
         self.number_entry = self._field(details_inner, "Invoice number", 0, 0)
         self.number_entry.insert(0, str(self.state["sledeci_broj"]))
-        self.number_entry.config(font=("Segoe UI", 12, "bold"))
+        self.number_entry.config(font=("Segoe UI", 16, "bold"))
         self.date_entry = self._field(details_inner, "Invoice date", 0, 1)
         self.date_entry.insert(0, format_date(default_issue_date()))
         self.date_entry.bind("<KeyRelease>", lambda _e: self._on_date_changed())
@@ -324,7 +329,7 @@ class App(tk.Tk):
             textvariable=self.meta_var,
             bg=WHITE,
             fg=NAVY,
-            font=("Segoe UI", 9, "italic"),
+            font=("Segoe UI", 12, "italic"),
             anchor="w",
         ).grid(row=3, column=0, columnspan=3, sticky="ew", pady=(10, 0))
         tk.Label(
@@ -332,7 +337,7 @@ class App(tk.Tk):
             text="The invoice date defaults to the last day of this month, and the deadline to the 10th of the next month. You can change both dates and the invoice number.",
             bg=WHITE,
             fg=MUTED,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 12),
             anchor="w",
             justify="left",
             wraplength=860,
@@ -344,20 +349,20 @@ class App(tk.Tk):
         client.columnconfigure(1, weight=1)
         client_head = tk.Frame(client, bg=WHITE)
         client_head.grid(row=0, column=0, columnspan=2, sticky="ew")
-        tk.Label(client_head, text="CUSTOMER", bg=WHITE, fg=NAVY, font=("Segoe UI", 8, "bold")).pack(side="left")
+        tk.Label(client_head, text="CUSTOMER", bg=WHITE, fg=NAVY, font=("Segoe UI", 14, "bold")).pack(side="left")
         tk.Label(
             client_head,
             text="Saved customers",
             bg=WHITE,
             fg=MUTED,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 12),
         ).pack(side="right")
         self.customer_combo = ttk.Combobox(
             client,
             textvariable=self.customer_var,
             state="readonly",
             style="Customer.TCombobox",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 13),
         )
         self.customer_combo.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         self.customer_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_customer_picked())
@@ -375,7 +380,7 @@ class App(tk.Tk):
             textvariable=self.bank_var,
             bg=WHITE,
             fg=MUTED,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 12),
             anchor="w",
             justify="left",
             wraplength=860,
@@ -384,7 +389,7 @@ class App(tk.Tk):
         items_card, items = self._card(wrap)
         items_card.pack(fill="x", pady=(0, 12))
         items.columnconfigure(0, weight=1)
-        tk.Label(items, text="SERVICES", bg=WHITE, fg=NAVY, font=("Segoe UI", 8, "bold")).grid(
+        tk.Label(items, text="SERVICES", bg=WHITE, fg=NAVY, font=("Segoe UI", 14, "bold")).grid(
             row=0, column=0, sticky="w"
         )
         heads = tk.Frame(items, bg=WHITE)
@@ -394,10 +399,10 @@ class App(tk.Tk):
         heads.columnconfigure(2, minsize=130)
         heads.columnconfigure(3, minsize=120)
         heads.columnconfigure(4, minsize=36)
-        self.name_header = tk.Label(heads, text="Service", bg=WHITE, fg=MUTED, font=("Segoe UI", 9), anchor="w")
-        self.qty_header = tk.Label(heads, text="Qty", bg=WHITE, fg=MUTED, font=("Segoe UI", 9), anchor="center")
-        self.price_header = tk.Label(heads, text="Price", bg=WHITE, fg=MUTED, font=("Segoe UI", 9), anchor="e")
-        self.line_header = tk.Label(heads, text="Total", bg=WHITE, fg=MUTED, font=("Segoe UI", 9), anchor="e")
+        self.name_header = tk.Label(heads, text="Service", bg=WHITE, fg=MUTED, font=("Segoe UI", 12), anchor="w")
+        self.qty_header = tk.Label(heads, text="Qty", bg=WHITE, fg=MUTED, font=("Segoe UI", 12), anchor="center")
+        self.price_header = tk.Label(heads, text="Price", bg=WHITE, fg=MUTED, font=("Segoe UI", 12), anchor="e")
+        self.line_header = tk.Label(heads, text="Total", bg=WHITE, fg=MUTED, font=("Segoe UI", 12), anchor="e")
         self.name_header.grid(row=0, column=0, sticky="ew", padx=(0, 8))
         self.qty_header.grid(row=0, column=1, sticky="ew", padx=(0, 8))
         self.price_header.grid(row=0, column=2, sticky="ew", padx=(0, 8))
@@ -420,7 +425,7 @@ class App(tk.Tk):
             bd=0,
             padx=12,
             pady=6,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 13, "bold"),
             cursor="hand2",
         )
         add.pack(side="left")
@@ -429,7 +434,19 @@ class App(tk.Tk):
         history_card.pack(fill="x")
         top = tk.Frame(history, bg=WHITE)
         top.pack(fill="x")
-        tk.Label(top, text="SAVED INVOICES", bg=WHITE, fg=NAVY, font=("Segoe UI", 8, "bold")).pack(side="left")
+        tk.Label(top, text="SAVED INVOICES", bg=WHITE, fg=NAVY, font=("Segoe UI", 14, "bold")).pack(side="left")
+        tk.Button(
+            top,
+            text="Delete invoice",
+            command=self._delete_selected,
+            bg=WHITE,
+            fg="#9b1c1c",
+            activeforeground="#9b1c1c",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 12, "bold"),
+            cursor="hand2",
+        ).pack(side="right")
         tk.Button(
             top,
             text="Open PDF",
@@ -438,7 +455,18 @@ class App(tk.Tk):
             fg=NAVY,
             relief="flat",
             bd=0,
-            font=("Segoe UI", 9, "bold"),
+            font=("Segoe UI", 12, "bold"),
+            cursor="hand2",
+        ).pack(side="right", padx=(0, 12))
+        tk.Button(
+            top,
+            text="Refresh",
+            command=self._reload_history,
+            bg=WHITE,
+            fg=NAVY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 12, "bold"),
             cursor="hand2",
         ).pack(side="right")
         tk.Label(
@@ -446,23 +474,33 @@ class App(tk.Tk):
             text="The invoice number is stored in the program and in Next bill number.txt.",
             bg=WHITE,
             fg=MUTED,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 12),
         ).pack(anchor="w", pady=(2, 8))
         columns = ("broj", "datum", "format", "kupac", "iznos")
-        self.tree = ttk.Treeview(history, columns=columns, show="headings", style="History.Treeview", height=4)
+        self.tree = ttk.Treeview(
+            history,
+            columns=columns,
+            show="headings",
+            style="History.Treeview",
+            height=4,
+            selectmode="browse",
+        )
         headings = {
-            "broj": ("Number", 70),
-            "datum": ("Date", 110),
-            "format": ("Format", 110),
+            "broj": ("Number", 90),
+            "datum": ("Date", 130),
+            "format": ("Format", 120),
             "kupac": ("Customer", 280),
-            "iznos": ("Amount", 140),
+            "iznos": ("Amount", 160),
         }
         for key, (title, width) in headings.items():
             self.tree.heading(key, text=title)
             self.tree.column(key, width=width, anchor="w" if key in ("kupac", "format") else "center")
         self.tree.column("iznos", anchor="e")
         self.tree.pack(fill="x")
+        self.tree.bind("<Button-1>", self._remember_history_click, add="+")
+        self.tree.bind("<<TreeviewSelect>>", self._remember_history_selection)
         self.tree.bind("<Double-1>", lambda _e: self._open_selected())
+        self.tree.bind("<Delete>", lambda _e: self._delete_selected())
         self.tree.tag_configure("odd", background="#f7f9fc")
 
     def _card(self, parent) -> tuple[tk.Frame, tk.Frame]:
@@ -474,7 +512,7 @@ class App(tk.Tk):
     def _field(self, parent, label: str, row: int, column: int, columnspan: int = 1) -> tk.Entry:
         box = tk.Frame(parent, bg=WHITE)
         box.grid(row=row, column=column, columnspan=columnspan, sticky="ew", padx=(0, 10), pady=(8, 0))
-        tk.Label(box, text=label, bg=WHITE, fg=MUTED, font=("Segoe UI", 8)).pack(anchor="w")
+        tk.Label(box, text=label, bg=WHITE, fg=MUTED, font=("Segoe UI", 11)).pack(anchor="w")
         entry = tk.Entry(
             box,
             relief="flat",
@@ -485,7 +523,7 @@ class App(tk.Tk):
             highlightthickness=1,
             highlightbackground=LINE,
             highlightcolor=NAVY,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 13),
         )
         entry.pack(fill="x", ipady=6)
         return entry
@@ -503,7 +541,7 @@ class App(tk.Tk):
             bd=0,
             padx=12,
             pady=6,
-            font=("Segoe UI", 9, "bold"),
+            font=("Segoe UI", 12, "bold"),
             cursor="hand2",
         )
 
@@ -535,9 +573,9 @@ class App(tk.Tk):
         self.price_header.config(text="Price")
         self.bank_var.set(profile.payment_hint)
         self.words_var.set(
-            "The amount in words is printed on the invoice."
+            "Amount in words is on the invoice."
             if profile.use_words
-            else "The amount in words is not printed on this invoice."
+            else "No amount in words on this invoice."
         )
         self._update_meta()
         self._recalc()
@@ -877,36 +915,115 @@ class App(tk.Tk):
     def _refresh_history(self) -> None:
         self.tree.delete(*self.tree.get_children())
         self.history_paths.clear()
+        self.history_index.clear()
+        self.selected_history = None
         for index, item in enumerate(self.state.get("istorija", [])):
             amount = item.get("iznos", "")
             try:
                 pretty = f"{Decimal(amount):,.2f} {item.get('valuta', '')}"
             except Exception:
                 pretty = f"{amount} {item.get('valuta', '')}"
+            country = item.get("zemlja") or item.get("format") or ""
+            if country in ("slovenija", "Slovenija", "Slovenia"):
+                country_label = "Slovenia"
+            elif country in ("srbija", "Srbija", "Serbia"):
+                country_label = "Serbia"
+            else:
+                country_label = str(country)
             iid = self.tree.insert(
                 "",
                 "end",
                 values=(
                     item.get("broj", ""),
                     _iso_to_display(item.get("datum", "")),
-                    "Slovenia" if item.get("zemlja") == "slovenija" else "Serbia",
+                    country_label,
                     item.get("kupac", ""),
                     pretty.strip(),
                 ),
                 tags=("odd",) if index % 2 else (),
             )
             self.history_paths[iid] = item.get("pdf", "")
+            self.history_index[iid] = index
+
+    def _remember_history_click(self, event) -> None:
+        row = self.tree.identify_row(event.y)
+        if row:
+            self.tree.selection_set(row)
+            self.selected_history = row
+
+    def _remember_history_selection(self, _event=None) -> None:
+        selected = self.tree.selection()
+        if selected:
+            self.selected_history = selected[0]
+
+    def _history_selection(self) -> str | None:
+        selected = self.tree.selection()
+        if selected:
+            return selected[0]
+        if self.selected_history and self.tree.exists(self.selected_history):
+            return self.selected_history
+        return None
+
+    def _reload_history(self) -> None:
+        state = load_state()
+        self.state["istorija"] = list(state.get("istorija") or [])
+        self._refresh_history()
+        self.status.config(text="Saved invoices refreshed.", fg=MUTED)
 
     def _open_selected(self) -> None:
-        selected = self.tree.selection()
+        selected = self._history_selection()
         if not selected:
-            messagebox.showinfo("Invoices", "Select an invoice from the list.")
+            messagebox.showinfo("Invoices", "Select an invoice from the list.", parent=self)
             return
-        path = Path(self.history_paths.get(selected[0], ""))
-        if not path.exists():
-            messagebox.showerror("PDF", "That PDF file is no longer at the saved location.")
+        path = _existing_invoice_file(self.history_paths.get(selected, ""))
+        if path is None:
+            messagebox.showerror("PDF", "That PDF file is no longer at the saved location.", parent=self)
+            self._reload_history()
             return
         os.startfile(path)  # noqa: S606
+
+    def _delete_selected(self) -> None:
+        iid = self._history_selection()
+        if not iid:
+            messagebox.showinfo("Invoices", "Select an invoice from the list.", parent=self)
+            return
+        index = self.history_index.get(iid)
+        history = list(self.state.get("istorija") or [])
+        if index is None or not (0 <= index < len(history)):
+            self._reload_history()
+            messagebox.showinfo(
+                "Invoices",
+                "That invoice is no longer in the list. The list was refreshed.",
+                parent=self,
+            )
+            return
+        item = history[index]
+        number = item.get("broj", "")
+        customer = item.get("kupac", "")
+        if not messagebox.askyesno(
+            "Delete invoice",
+            f"Delete invoice {number} for {customer}?\n\nThe saved PDF will be removed.",
+            parent=self,
+        ):
+            return
+        history.pop(index)
+        state = load_state()
+        state["istorija"] = history
+        save_state(state)
+        self.state["istorija"] = history
+        problems = _delete_saved_files(item)
+        self._refresh_history()
+        self.update_idletasks()
+        if problems:
+            self.status.config(text=f"Invoice {number} was removed from the list.", fg="#9b1c1c")
+            messagebox.showwarning(
+                "Delete invoice",
+                "The invoice was removed from the list, but a file is still open and could not be deleted:\n\n"
+                + "\n".join(problems),
+                parent=self,
+            )
+            return
+        self.status.config(text=f"Deleted invoice {number}.", fg="#0f7b4c")
 
     def _open_folder(self) -> None:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -920,6 +1037,49 @@ class App(tk.Tk):
             save_state(state)
         finally:
             self.destroy()
+
+
+def _invoice_file_candidates(raw: str) -> list[Path]:
+    if not raw:
+        return []
+    paths = [Path(raw)]
+    updated = english_stored_path(raw)
+    if os.path.normcase(updated) != os.path.normcase(raw):
+        paths.append(Path(updated))
+    return paths
+
+
+def _existing_invoice_file(raw: str) -> Path | None:
+    for path in _invoice_file_candidates(raw):
+        if path.is_file():
+            return path
+    return None
+
+
+def _delete_saved_files(item: dict) -> list[str]:
+    problems: list[str] = []
+    candidates: list[Path] = []
+    for key in ("pdf", "excel"):
+        raw = str(item.get(key) or "")
+        candidates.extend(_invoice_file_candidates(raw))
+        pdf = Path(raw) if raw else None
+        if pdf is not None and pdf.suffix.lower() == ".pdf":
+            candidates.append(pdf.with_suffix(".xlsx"))
+            updated = english_stored_path(raw)
+            candidates.append(Path(updated).with_suffix(".xlsx"))
+    seen: set[str] = set()
+    for path in candidates:
+        if not path.suffix:
+            continue
+        key = os.path.normcase(str(path))
+        if key in seen or not path.is_file():
+            continue
+        seen.add(key)
+        try:
+            path.unlink()
+        except OSError as exc:
+            problems.append(f"{path.name} ({exc.strerror or exc})")
+    return problems
 
 
 def _iso_to_display(value: str) -> str:
