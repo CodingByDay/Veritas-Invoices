@@ -1,0 +1,43 @@
+{
+  "sledeci_broj": 11,
+  "istorija": [
+    {
+      "broj": 10,
+      "datum": "2026-10-31",
+      "rok": "2026-11-10",
+      "format": "Srbija",
+      "zemlja": "srbija",
+      "kupac": "Landfreight d.o.o.",
+      "iznos": "3200.00",
+      "valuta": "RSD",
+      "stavke": [
+        "Projekat NetworksDefender",
+        "Troškovi veštačke inteligencije"
+      ],
+      "excel": "D:\\Main folders\\Veritas Software\\Invoices\\Invoice program\\izdati\\2026\\Faktura Veritas - Srbija - 10 - oktobar 2026.xlsx",
+      "pdf": "D:\\Main folders\\Veritas Software\\Invoices\\Invoice program\\izdati\\2026\\Faktura Veritas - Srbija - 10 - oktobar 2026.pdf"
+    }
+  ],
+  "kupci": {},
+  "kupci_lista": [
+    {
+      "id": "insist",
+      "naziv": "IN.SIST d.o.o.",
+      "adresa": "Koroška cesta 62B, Velenje, 3320 Velenje Slovenia",
+      "mb": "2147645000",
+      "pib": "SI21135991",
+      "mesto": "Velenje",
+      "format": "slovenija"
+    },
+    {
+      "id": "landfreight",
+      "naziv": "Landfreight d.o.o.",
+      "adresa": "Cara Lazara 5-7, 11000 Beograd",
+      "mb": "21508730",
+      "pib": "111602061",
+      "mesto": "Beograd",
+      "format": "srbija"
+    }
+  ],
+  "poslednji_format": "slovenija"
+}
